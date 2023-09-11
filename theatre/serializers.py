@@ -2,7 +2,7 @@ from django.db import transaction
 from rest_framework import serializers
 from rest_framework.validators import UniqueTogetherValidator
 
-from theatre.models import Genre, Actor, TheatreHall, Play, Performance, Ticket
+from theatre.models import Genre, Actor, TheatreHall, Play, Performance, Ticket, Reservation
 
 
 class GenreSerializer(serializers.ModelSerializer):
@@ -107,3 +107,28 @@ class TicketSerializer(serializers.ModelSerializer):
                 fields=["performance", "row", "seat"]
             )
         ]
+
+
+class TicketListSerializer(TicketSerializer):
+    performance = PerformanceListSerializer(many=False, read_only=True)
+
+
+class ReservationSerializer(serializers.ModelSerializer):
+    tickets = TicketSerializer(many=True, read_only=False)
+
+    class Meta:
+        model = Reservation
+        fields = ("id", "tickets", "created_at")
+
+    def create(self, validated_data):
+        with transaction.atomic():
+            tickets_data = validated_data.pop("tickets")
+            reservation = Reservation.objects.create(**validated_data)
+            for ticket_data in tickets_data:
+                Ticket.objects.create(order=reservation, **ticket_data)
+            return reservation
+
+
+class ReservationListSerializer(ReservationSerializer):
+    tickets = TicketListSerializer(many=True, read_only=True)
+
