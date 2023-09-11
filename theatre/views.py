@@ -1,11 +1,31 @@
 from django.db.models import F, Count
-from django.shortcuts import render
 from rest_framework import viewsets
+from rest_framework.pagination import PageNumberPagination
 
-from theatre.models import Genre, Actor, TheatreHall, Play, Performance
-from theatre.serializers import GenreSerializer, ActorSerializer, TheatreHallSerializer, PlaySerializer, \
-    PlayListSerializer, PlayDetailSerializer, PerformanceSerializer, PerformanceListSerializer, \
-    PerformanceDetailSerializer
+from theatre.models import (
+    Genre,
+    Actor,
+    TheatreHall,
+    Play,
+    Performance,
+    Ticket,
+    Reservation
+)
+from theatre.serializers import (
+    GenreSerializer,
+    ActorSerializer,
+    TheatreHallSerializer,
+    PlaySerializer,
+    PlayListSerializer,
+    PlayDetailSerializer,
+    PerformanceSerializer,
+    PerformanceListSerializer,
+    PerformanceDetailSerializer,
+    TicketSerializer,
+    TicketListSerializer,
+    ReservationSerializer,
+    ReservationListSerializer
+)
 
 
 def _params_to_int(qs):
@@ -103,4 +123,42 @@ class PerformanceViewSet(viewsets.ModelViewSet):
         return PerformanceSerializer
 
 
+class ReservationPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = "page_size"
+    max_page_size = 100
 
+
+class TicketViewSet(viewsets.ModelViewSet):
+    queryset = Ticket.objects.select_related(
+        "performance__play",
+        "performance__theatre_hall",
+        "reservation")
+    serializer_class = TicketSerializer
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return TicketListSerializer
+
+        return TicketSerializer
+
+
+class ReservationViewSet(viewsets.ModelViewSet):
+    queryset = Reservation.objects.prefetch_related(
+        "tickets__performance__play",
+        "tickets__performance__theatre_hall")
+
+    serializer_class = ReservationSerializer
+    pagination_class = ReservationPagination
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return ReservationListSerializer
+
+        return ReservationSerializer
+
+    def get_queryset(self):
+        return self.queryset.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
