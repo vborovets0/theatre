@@ -1,4 +1,5 @@
 from django.db.models import F, Count
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
@@ -98,12 +99,31 @@ class PlayViewSet(viewsets.ModelViewSet):
         permission_classes=[IsAdminUser],
     )
     def upload_image(self, request, pk=None):
-        movie = self.get_object()
-        serializer = self.get_serializer(movie, data=request.data)
+        play = self.get_object()
+        serializer = self.get_serializer(play, data=request.data)
 
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name='title',
+                description='Filter by title',
+                type={"type": "list", "items": {"type": "string"}}),
+            OpenApiParameter(
+                name='genres',
+                description='Filter by genre id',
+                type={"type": "list", "items": {"type": "number"}}),
+            OpenApiParameter(
+                name='actors',
+                description='Filter by actor id',
+                type={"type": "list", "items": {"type": "number"}})
+        ]
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(self, request, *args, **kwargs)
 
 
 class PerformanceViewSet(viewsets.ModelViewSet):
@@ -142,6 +162,21 @@ class PerformanceViewSet(viewsets.ModelViewSet):
             return PerformanceDetailSerializer
 
         return PerformanceSerializer
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name='date',
+                description='Filter by date (ex. ?date=2024-10-08)',
+                type={"type": "list", "items": {"type": "string"}}),
+            OpenApiParameter(
+                name='play',
+                description='Filter by play id',
+                type={"type": "list", "items": {"type": "number"}})
+        ]
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(self, request, *args, **kwargs)
 
 
 class ReservationPagination(PageNumberPagination):
